@@ -1,0 +1,59 @@
+name: get_past
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cron-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Rust stable version
+        run: rustup update stable
+
+      - name: Rust release build
+        run: cargo build --release
+
+      - name: Rust run
+        run: cargo run -- past --release
+
+      - name: Deploy JSON
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          FILES=$(
+            {
+              git ls-files -m -- 'docs/v3'
+              git diff --cached --name-only --diff-filter=AM -- 'docs/v3'
+              git ls-files --others --exclude-standard -- 'docs/v3'
+            } | sort -u
+          )
+
+          if [ -z "$FILES" ]; then
+            echo "No changes in docs/v3 to commit."
+            exit 0
+          fi
+
+          git pull --rebase --autostash
+
+          echo "$FILES" | xargs -d '\n' git add --
+
+          git commit -m "chore: deploy JSON files to docs/v3 [skip ci]" || {
+            echo "Nothing to commit."
+            exit 0
+          }
+
+          git push origin HEAD || (git pull --rebase --autostash && git push origin HEAD)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
