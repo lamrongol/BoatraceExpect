@@ -23,11 +23,11 @@ async fn main() {
     let data_dir = rsrc_file.join("docs").join("v3");
 
     let args: Vec<String> = env::args().collect();
-    let (date, json_str) = if args.len() == 1 {
+    let (date, json_str) = if args.len() == 2 {
         //no argument
         let today = Utc::now().with_timezone(&TIMEZONE).naive_local().date();
         (today, scraping(&today).await)
-    } else if args.len() == 2 {
+    } else if args.len() == 3 {
         let record_file = data_dir.join("recorded_day.txt");
         let date = fs::read_to_string(&record_file).unwrap();
         let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").unwrap() - TimeDelta::days(1);
