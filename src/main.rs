@@ -27,12 +27,16 @@ async fn main() {
         //no argument
         let today = Utc::now().with_timezone(&TIMEZONE).naive_local().date();
         (today, scraping(&today).await)
-    } else {
+    } else if args.len() == 2 {
         let record_file = data_dir.join("recorded_day.txt");
         let date = fs::read_to_string(&record_file).unwrap();
         let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").unwrap() - TimeDelta::days(1);
         let tmp = scraping(&date).await;
         fs::write(&record_file, date.to_string()).unwrap();
+        (date, tmp)
+    } else {
+        let date = NaiveDate::parse_from_str(&args[2], "%Y%m%d").unwrap();
+        let tmp = scraping(&date).await;
         (date, tmp)
     };
 
