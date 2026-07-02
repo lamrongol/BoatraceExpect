@@ -1,13 +1,10 @@
 use chrono::{DateTime, Datelike, NaiveDate, TimeDelta, TimeZone, Utc};
 use chrono_tz::Tz;
-use rand::random;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use scraper::{Html, Selector};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::create_dir;
-use std::ops::Sub;
-use std::thread::Thread;
 use std::time::Duration;
 use std::{env, fs, thread};
 
@@ -22,14 +19,17 @@ async fn main() {
     rsrc_file.pop();
     let data_dir = rsrc_file.join("docs").join("v3");
 
-    let args: Vec<String> = env::args().collect();
+    let mut args: Vec<String> = env::args().collect();
+    if args.last().unwrap()=="--release"{
+        args.pop();
+    }
     //GitHub Workflow上での調査のため
     println!("Args: {:?}", args);
-    let (date, json_str) = if args.len() == 2 {
+    let (date, json_str) = if args.len() == 1 {
         //no argument
         let today = Utc::now().with_timezone(&TIMEZONE).naive_local().date();
         (today, scraping(&today).await)
-    } else if args.len() == 3 {
+    } else if args.len() == 2 {
         let record_file = data_dir.join("recorded_day.txt");
         let date = fs::read_to_string(&record_file).unwrap();
         let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").unwrap() - TimeDelta::days(1);
