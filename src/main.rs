@@ -23,6 +23,8 @@ async fn main() {
     let data_dir = rsrc_file.join("docs").join("v3");
 
     let args: Vec<String> = env::args().collect();
+    //GitHub Workflow上での調査のため
+    println!("Args: {:?}", args);
     let (date, json_str) = if args.len() == 2 {
         //no argument
         let today = Utc::now().with_timezone(&TIMEZONE).naive_local().date();
