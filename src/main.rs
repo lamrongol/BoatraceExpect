@@ -20,7 +20,7 @@ async fn main() {
     let data_dir = rsrc_file.join("docs").join("v3");
 
     let mut args: Vec<String> = env::args().collect();
-    if args.last().unwrap()=="--release"{
+    if args.last().unwrap() == "--release" {
         args.pop();
     }
     //GitHub Workflow上での調査のため
@@ -107,6 +107,7 @@ async fn scraping(date: &NaiveDate) -> String {
             let html = fetch(&url).await.unwrap();
             let document = Html::parse_document(&html);
 
+            dbg!(stadium_no, race_no);
             let confidence = document
                 .select(&Selector::parse("p.state2_lv").unwrap())
                 .next()
