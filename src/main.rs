@@ -189,7 +189,7 @@ struct Wrapper {
 }
 
 pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
-    thread::sleep(Duration::from_millis(1000 + rand::random_range(0..1000)));
+    thread::sleep(Duration::from_millis(2000 + rand::random_range(0..1000)));
     // Some sites block requests with no/odd User-Agent.
     // This is a simple, polite one.
     let mut headers = HeaderMap::new();
