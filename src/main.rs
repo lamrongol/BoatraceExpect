@@ -5,6 +5,7 @@ use scraper::{Html, Selector};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::create_dir;
+use std::process::exit;
 use std::time::Duration;
 use std::{env, fs, thread};
 
@@ -54,6 +55,7 @@ async fn main() {
     ));
     fs::write(&file_name, json_str).unwrap();
 }
+const RETRY_CNT: usize = 3;
 async fn scraping(date: &NaiveDate) -> String {
     let json_date = format!("{}-{:02}-{:02}", date.year(), date.month(), date.day());
     let date = format!("{}{:02}{:02}", date.year(), date.month(), date.day());
@@ -103,68 +105,84 @@ async fn scraping(date: &NaiveDate) -> String {
             race_no_list.push(no);
         }
         for race_no in race_no_list {
-            let url = format!("{BASE_URL}pcexpect?rno={race_no}&jcd={stadium_no}&hd={date}");
-            let html = fetch(&url).await.unwrap();
-            let document = Html::parse_document(&html);
-
             dbg!(stadium_no, race_no);
-            let confidence = document
-                .select(&Selector::parse("p.state2_lv").unwrap())
-                .next()
-                .unwrap();
-            let confidence_level = confidence
-                .attr("class")
-                .unwrap()
-                .chars()
-                .last()
-                .unwrap()
-                .to_string()
-                .parse::<i64>()
-                .unwrap();
-            let mut map = BTreeMap::new();
-            for tr in document.select(
-                &Selector::parse(
-                    "div.contentsFrame1_inner div:nth-child(6) table tbody tr:nth-child(1)",
-                )
-                .unwrap(),
-            ) {
-                let boat_td = tr
-                    .select(&Selector::parse("td:nth-child(2)").unwrap())
-                    .next()
-                    .unwrap();
-                let boat_number = boat_td.text().next().unwrap().parse::<u8>().unwrap();
+            //正常に取得できたかチェックしてダメなら再取得(三回まで)
+            for i in 0..RETRY_CNT {
+                let url = format!("{BASE_URL}pcexpect?rno={race_no}&jcd={stadium_no}&hd={date}");
+                let html = fetch(&url).await.unwrap();
 
-                let expect_img = tr
-                    .select(&Selector::parse("td:nth-child(1) img").unwrap())
+                let document = Html::parse_document(&html);
+                let tmp = document
+                    .select(&Selector::parse("p.state2_lv").unwrap())
                     .next();
-                let expect_level = if expect_img.is_some() {
-                    let chars = expect_img
-                        .unwrap()
-                        .attr("src")
-                        .unwrap()
-                        .chars()
-                        .collect::<Vec<_>>();
-                    let tmp = chars[chars.len() - 5].to_string().parse::<i64>().unwrap();
-                    //△と☓の数値が逆になってる？
-                    if tmp == 3 {
-                        4
-                    } else if tmp == 4 {
-                        3
-                    } else {
-                        tmp
+                //取得チェック
+                if tmp.is_none() {
+                    println!("データが取得できませんでした");
+                    if i == RETRY_CNT - 1 {
+                        exit(1);
                     }
-                } else {
-                    5
-                };
-                map.insert(boat_number, expect_level);
+                    thread::sleep(Duration::from_mins(1));
+                    continue;
+                }
+                let confidence = tmp.unwrap();
+
+                let confidence_level = confidence
+                    .attr("class")
+                    .unwrap()
+                    .chars()
+                    .last()
+                    .unwrap()
+                    .to_string()
+                    .parse::<i64>()
+                    .unwrap();
+                let mut map = BTreeMap::new();
+                for tr in document.select(
+                    &Selector::parse(
+                        "div.contentsFrame1_inner div:nth-child(6) table tbody tr:nth-child(1)",
+                    )
+                    .unwrap(),
+                ) {
+                    let boat_td = tr
+                        .select(&Selector::parse("td:nth-child(2)").unwrap())
+                        .next()
+                        .unwrap();
+                    let boat_number = boat_td.text().next().unwrap().parse::<u8>().unwrap();
+
+                    let expect_img = tr
+                        .select(&Selector::parse("td:nth-child(1) img").unwrap())
+                        .next();
+                    let expect_level = if expect_img.is_some() {
+                        let chars = expect_img
+                            .unwrap()
+                            .attr("src")
+                            .unwrap()
+                            .chars()
+                            .collect::<Vec<_>>();
+                        let tmp = chars[chars.len() - 5].to_string().parse::<i64>().unwrap();
+                        //△と☓の数値が逆になってる？
+                        if tmp == 3 {
+                            4
+                        } else if tmp == 4 {
+                            3
+                        } else {
+                            tmp
+                        }
+                    } else {
+                        5
+                    };
+                    map.insert(boat_number, expect_level);
+                }
+                expect_list.push(Expect {
+                    date: json_date.clone(),
+                    stadium_number: stadium_no.parse().unwrap(),
+                    number: race_no.parse().unwrap(),
+                    confidence_level,
+                    expect_level: map,
+                });
+
+                //エラーが起きなかったらbreak
+                break;
             }
-            expect_list.push(Expect {
-                date: json_date.clone(),
-                stadium_number: stadium_no.parse().unwrap(),
-                number: race_no.parse().unwrap(),
-                confidence_level,
-                expect_level: map,
-            });
         }
     }
 
