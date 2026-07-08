@@ -1,9 +1,9 @@
-use chrono::{DateTime, Datelike, NaiveDate, TimeDelta, TimeZone, Utc};
+use chrono::{Datelike, NaiveDate, TimeDelta, Utc};
 use chrono_tz::Tz;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use scraper::{Html, Selector};
 use serde::Serialize;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fs::create_dir;
 use std::process::exit;
 use std::time::Duration;
@@ -14,7 +14,7 @@ const TIMEZONE: Tz = Tz::Asia__Tokyo;
 
 #[tokio::main]
 async fn main() {
-    let mut rsrc_file = std::env::current_exe().expect("Can't find path to executable");
+    let mut rsrc_file = env::current_exe().expect("Can't find path to executable");
     rsrc_file.pop();
     rsrc_file.pop();
     rsrc_file.pop();
@@ -121,7 +121,7 @@ async fn scraping(date: &NaiveDate) -> String {
                     if i == RETRY_CNT - 1 {
                         exit(1);
                     }
-                    thread::sleep(Duration::from_mins(1));
+                    tokio::time::sleep(Duration::from_mins(1)).await;
                     continue;
                 }
                 let confidence = tmp.unwrap();
@@ -207,7 +207,7 @@ struct Wrapper {
 }
 
 pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
-    thread::sleep(Duration::from_millis(2000 + rand::random_range(0..1000)));
+    tokio::time::sleep(Duration::from_millis(2000 + rand::random_range(0..1000))).await;
     // Some sites block requests with no/odd User-Agent.
     // This is a simple, polite one.
     let mut headers = HeaderMap::new();
