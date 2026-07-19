@@ -69,7 +69,7 @@ async fn main() {
     if !dir.exists() {
         create_dir(dir.clone()).unwrap();
     }
-    convert_v3_to_v1(file_path.file_name().unwrap().to_str().unwrap());
+    convert_v3_to_v1(file_path.file_name().unwrap().to_str().unwrap(), is_today);
 }
 
 async fn scraping(date: &NaiveDate) -> String {
@@ -440,53 +440,55 @@ pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
 }
 
 //Run only once
-fn convert_v3_to_v1(file_name: &str) {
+fn convert_v3_to_v1(file_name: &str, is_today: bool) {
     let mut rsrc_file = env::current_exe().expect("Can't find path to executable");
     rsrc_file.pop();
     rsrc_file.pop();
     rsrc_file.pop();
     let year = file_name[0..4].to_string();
-    let v1_data_dir = rsrc_file.join("docs").join("v1").join(year.clone());
-    let v3_data_dir = rsrc_file.join("docs").join("v3").join(year);
-    let v3_dir = fs::read_dir(v3_data_dir).unwrap();
-    for json_file in v3_dir {
-        let json_file = json_file.unwrap();
-        if json_file.file_type().unwrap().is_dir() {
-            continue;
-        }
-        let v3_expect_wrapper: V3Wrapper =
-            serde_json::from_str(&fs::read_to_string(json_file.path()).unwrap()).unwrap();
-        let mut stadiums = Stadiums {
-            stadiums: Default::default(),
-        };
-        for v3_expect in v3_expect_wrapper.expect.into_iter() {
-            if !stadiums.stadiums.contains_key(&v3_expect.stadium_number) {
-                stadiums.stadiums.insert(
-                    v3_expect.stadium_number,
-                    Races {
-                        races: Default::default(),
-                    },
-                );
-            }
+    let v1_data_dir = rsrc_file.join("docs").join("v1");
+    let v3_data_dir = rsrc_file.join("docs").join("v3");
+    let v1_file = v1_data_dir.join(year.clone()).join(file_name);
+    let v3_file = v3_data_dir.join(year).join(file_name);
+    if is_today {
+        fs::copy(&v3_file, v3_data_dir.join("today.json")).unwrap();
+    }
 
-            let races = stadiums
-                .stadiums
-                .get_mut(&v3_expect.stadium_number)
-                .unwrap();
-            races.races.insert(
-                v3_expect.number,
-                Wrapper {
-                    expect: Expect {
-                        date: v3_expect.date,
-                        stadium_number: v3_expect.stadium_number,
-                        race_number: v3_expect.number,
-                        confidence_level: v3_expect.confidence_level,
-                        expect_level: v3_expect.expect_level,
-                    },
+    let v3_expect_wrapper: V3Wrapper =
+        serde_json::from_str(&fs::read_to_string(v3_file).unwrap()).unwrap();
+    let mut stadiums = Stadiums {
+        stadiums: Default::default(),
+    };
+    for v3_expect in v3_expect_wrapper.expect.into_iter() {
+        if !stadiums.stadiums.contains_key(&v3_expect.stadium_number) {
+            stadiums.stadiums.insert(
+                v3_expect.stadium_number,
+                Races {
+                    races: Default::default(),
                 },
             );
         }
-        let json_str = serde_json::to_string(&ExpectWrapper { programs: stadiums }).unwrap();
-        fs::write(v1_data_dir.join(json_file.file_name()), json_str).unwrap();
+
+        let races = stadiums
+            .stadiums
+            .get_mut(&v3_expect.stadium_number)
+            .unwrap();
+        races.races.insert(
+            v3_expect.number,
+            Wrapper {
+                expect: Expect {
+                    date: v3_expect.date,
+                    stadium_number: v3_expect.stadium_number,
+                    race_number: v3_expect.number,
+                    confidence_level: v3_expect.confidence_level,
+                    expect_level: v3_expect.expect_level,
+                },
+            },
+        );
+    }
+    let json_str = serde_json::to_string(&ExpectWrapper { programs: stadiums }).unwrap();
+    fs::write(&v1_file, json_str.clone()).unwrap();
+    if is_today {
+        fs::copy(&v1_file, v1_data_dir.join("today.json")).unwrap();
     }
 }
