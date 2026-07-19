@@ -2,8 +2,8 @@ use chrono::{Datelike, NaiveDate, TimeDelta, Utc};
 use chrono_tz::Tz;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use scraper::{Html, Selector};
-use serde::Serialize;
-use std::collections::BTreeMap;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::fs::create_dir;
 use std::process::exit;
 use std::time::Duration;
@@ -18,7 +18,7 @@ async fn main() {
     rsrc_file.pop();
     rsrc_file.pop();
     rsrc_file.pop();
-    let data_dir = rsrc_file.join("docs").join("v3");
+    let data_dir = rsrc_file.join("docs").join("v1");
 
     let mut args: Vec<String> = env::args().collect();
     if args.last().unwrap() == "--release" {
@@ -77,11 +77,17 @@ async fn scraping(date: &NaiveDate) -> String {
             .split_once("=")
             .unwrap()
             .1;
+        // dbg!(url, no);
+        //store raw string because stadium_no must be "01" when single digit
         stadium_no_list.push(no);
     }
 
-    let mut expect_list = vec![];
-    for stadium_no in stadium_no_list {
+    let mut stadiums = Stadiums {
+        stadiums: Default::default(),
+    };
+    for stadium_no in stadium_no_list.iter() {
+        let stadium_no_i64 = stadium_no.parse::<i64>().unwrap();
+
         let url = format!("{BASE_URL}raceindex?jcd={stadium_no}&hd={date}");
         let html = fetch(&url).await.unwrap();
         let document = Html::parse_document(&html);
@@ -104,6 +110,13 @@ async fn scraping(date: &NaiveDate) -> String {
                 .1;
             race_no_list.push(no);
         }
+        if race_no_list.is_empty() {
+            continue;
+        }
+
+        let mut races = Races {
+            races: Default::default(),
+        };
         for race_no in race_no_list {
             dbg!(stadium_no, race_no);
             //正常に取得できたかチェックしてダメなら再取得(三回まで)
@@ -172,28 +185,72 @@ async fn scraping(date: &NaiveDate) -> String {
                     };
                     map.insert(boat_number, expect_level);
                 }
-                expect_list.push(Expect {
-                    date: json_date.clone(),
-                    stadium_number: stadium_no.parse().unwrap(),
-                    number: race_no.parse().unwrap(),
-                    confidence_level,
-                    expect_level: map,
-                });
+                let race_no_i64 = race_no.parse::<i64>().unwrap();
+                races.races.insert(
+                    race_no_i64,
+                    Wrapper {
+                        expect: Expect {
+                            date: json_date.clone(),
+                            stadium_number: stadium_no_i64,
+                            race_number: race_no_i64,
+                            confidence_level,
+                            expect_level: map,
+                        },
+                    },
+                );
 
                 //エラーが起きなかったらbreak
                 break;
             }
         }
+        stadiums.stadiums.insert(stadium_no_i64, races);
     }
 
-    serde_json::to_string(&Wrapper {
-        expect: expect_list,
-    })
-    .unwrap()
+    serde_json::to_string(&ExpectWrapper { programs: stadiums }).unwrap()
 }
 
-#[derive(Debug, Serialize)]
-struct Expect {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Expect {
+    pub date: String,
+    pub stadium_number: i64,
+    pub race_number: i64,
+    pub confidence_level: i64,
+    pub expect_level: BTreeMap<u8, i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExpectWrapper {
+    programs: Stadiums,
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Stadiums {
+    stadiums: BTreeMap<i64, Races>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Races {
+    races: BTreeMap<i64, Wrapper>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Wrapper {
+    expect: Expect,
+}
+
+impl ExpectWrapper {
+    pub fn get(&self, stadium_number: i64, race_number: i64) -> Option<Expect> {
+        Some(
+            self.programs
+                .stadiums
+                .get(&stadium_number)?
+                .races
+                .get(&race_number)?
+                .expect
+                .clone(),
+        )
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct V3Expect {
     date: String,
     stadium_number: i64,
     number: i64,
@@ -201,9 +258,9 @@ struct Expect {
     expect_level: BTreeMap<u8, i64>,
 }
 
-#[derive(Debug, Serialize)]
-struct Wrapper {
-    expect: Vec<Expect>,
+#[derive(Debug, Serialize, Deserialize)]
+struct V3Wrapper {
+    expect: Vec<V3Expect>,
 }
 
 pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
@@ -227,4 +284,55 @@ pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
         .error_for_status()?
         .text()
         .await
+}
+
+//Run only once
+fn convert_v3_to_v1(year: &str) {
+    let mut rsrc_file = env::current_exe().expect("Can't find path to executable");
+    rsrc_file.pop();
+    rsrc_file.pop();
+    rsrc_file.pop();
+    let v1_data_dir = rsrc_file.join("docs").join("v1").join(year.clone());
+    let v3_data_dir = rsrc_file.join("docs").join("v3").join(year);
+    let v3_dir = fs::read_dir(v3_data_dir).unwrap();
+    for json_file in v3_dir {
+        let json_file = json_file.unwrap();
+        if json_file.file_type().unwrap().is_dir() {
+            continue;
+        }
+        let v3_expect_wrapper: V3Wrapper =
+            serde_json::from_str(&fs::read_to_string(json_file.path()).unwrap()).unwrap();
+        let mut stadiums = Stadiums {
+            stadiums: Default::default(),
+        };
+        for v3_expect in v3_expect_wrapper.expect.into_iter() {
+            if !stadiums.stadiums.contains_key(&v3_expect.stadium_number) {
+                stadiums.stadiums.insert(
+                    v3_expect.stadium_number,
+                    Races {
+                        races: Default::default(),
+                    },
+                );
+            }
+
+            let races = stadiums
+                .stadiums
+                .get_mut(&v3_expect.stadium_number)
+                .unwrap();
+            races.races.insert(
+                v3_expect.number,
+                Wrapper {
+                    expect: Expect {
+                        date: v3_expect.date,
+                        stadium_number: v3_expect.stadium_number,
+                        race_number: v3_expect.number,
+                        confidence_level: v3_expect.confidence_level,
+                        expect_level: v3_expect.expect_level,
+                    },
+                },
+            );
+        }
+        let json_str = serde_json::to_string(&ExpectWrapper { programs: stadiums }).unwrap();
+        fs::write(v1_data_dir.join(json_file.file_name()), json_str).unwrap();
+    }
 }
