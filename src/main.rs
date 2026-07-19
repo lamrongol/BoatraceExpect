@@ -29,7 +29,8 @@ async fn main() {
     }
     //GitHub Workflow上での調査のため
     println!("Args: {:?}", args);
-    let (date, json_str) = if args.len() == 1 {
+    let is_today = args.len() == 1;
+    let (date, json_str) = if is_today {
         //no argument
         let today = Utc::now().with_timezone(&TIMEZONE).naive_local().date();
         (today, scraping(&today).await)
@@ -58,6 +59,10 @@ async fn main() {
         date.month(),
         date.day()
     ));
+    if is_today {
+        let today_file = v3_dir.join("today.json");
+        fs::write(&today_file, json_str.clone()).unwrap();
+    }
     fs::write(&file_path, json_str).unwrap();
 
     let dir = v1_dir.join(date.year().to_string());
