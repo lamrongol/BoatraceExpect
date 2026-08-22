@@ -33,9 +33,9 @@ jobs:
 
           V3FILES=$(
             {
-              git ls-files -m -- 'docs/v3' | grep '\.json$'
-              git diff --cached --name-only --diff-filter=AM -- 'docs/v3' | grep '\.json$'
-              git ls-files --others --exclude-standard -- 'docs/v3' | grep '\.json$'
+              git ls-files -m -- 'docs/v3'
+              git diff --cached --name-only --diff-filter=AM -- 'docs/v3' 
+              git ls-files --others --exclude-standard -- 'docs/v3'
             }  | sort -u
           )
 

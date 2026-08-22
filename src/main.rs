@@ -3,12 +3,12 @@ use chrono_tz::Tz;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 use std::fs::create_dir;
 use std::path::PathBuf;
 use std::process::exit;
 use std::time::Duration;
-use std::{env, fs, thread};
+use std::{env, fs};
 
 const BASE_URL: &str = "https://www.boatrace.jp/owpc/pc/race/";
 const TIMEZONE: Tz = Tz::Asia__Tokyo;
