@@ -23,6 +23,10 @@ async fn main() {
     let v3_dir = docs_dir.join("v3");
     let v1_dir = docs_dir.join("v1");
 
+    //Only Once
+    // convert_all_v3_files_to_v1(&v3_dir, &v1_dir);
+    // return;
+
     let mut args: Vec<String> = env::args().collect();
     if args.last().unwrap() == "--release" {
         args.pop();
@@ -70,6 +74,28 @@ async fn main() {
         create_dir(dir.clone()).unwrap();
     }
     convert_v3_to_v1(file_path.file_name().unwrap().to_str().unwrap(), is_today);
+}
+
+//Only once
+fn convert_all_v3_files_to_v1(v3_dir: &PathBuf, v1_dir: &PathBuf) {
+    for dir in v3_dir.read_dir().unwrap() {
+        let dir = dir.unwrap();
+        if dir.file_type().unwrap().is_file() {
+            continue;
+        }
+        let year = dir.file_name().to_str().unwrap().to_string();
+        let entries = fs::read_dir(dir.path()).unwrap();
+        for entry in entries {
+            let path = entry.unwrap().path();
+            let date = path.file_name().unwrap().to_str().unwrap()[0..8].to_string();
+
+            let dir = v1_dir.join(year.clone());
+            if !dir.exists() {
+                create_dir(dir.clone()).unwrap();
+            }
+            convert_v3_to_v1(path.file_name().unwrap().to_str().unwrap(), false);
+        }
+    }
 }
 
 async fn scraping(date: &NaiveDate) -> String {
