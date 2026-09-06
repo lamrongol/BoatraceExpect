@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-    group: test
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
