@@ -7,7 +7,6 @@ on:
 
 concurrency:
     group: test
-    cancel-in-progress: true
 
 permissions:
   contents: write
