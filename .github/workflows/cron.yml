@@ -69,3 +69,12 @@ jobs:
           git push origin HEAD || (git pull --rebase --autostash && git push origin HEAD)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Discord Webhook Notify
+        if: success()
+        uses: rjstone/discord-webhook-notify@v2.3.1
+        with:
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+          embeds: |
+            - title: 公式予想取得成功
+              description: test
