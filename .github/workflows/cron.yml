@@ -77,4 +77,4 @@ jobs:
           webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
           embeds: |
             - title: 公式予想取得成功
-              description: test
+              description: @lamrongol
