@@ -102,7 +102,7 @@ async fn scraping(date: &NaiveDate) -> String {
     let json_date = format!("{}-{:02}-{:02}", date.year(), date.month(), date.day());
     let date = format!("{}{:02}{:02}", date.year(), date.month(), date.day());
     let date_url = format!("{BASE_URL}index?hd={}", &date);
-    let html = fetch(&date_url).await.unwrap();
+    let html = fetch_until_success(&date_url).await;
     let document = Html::parse_document(&html);
     let mut stadium_no_list = vec![];
     for a in document
@@ -125,7 +125,7 @@ async fn scraping(date: &NaiveDate) -> String {
     let mut expect_list = vec![];
     for stadium_no in stadium_no_list {
         let url = format!("{BASE_URL}raceindex?jcd={stadium_no}&hd={date}");
-        let html = fetch(&url).await.unwrap();
+        let html = fetch_until_success(&url).await;
         let document = Html::parse_document(&html);
         let mut race_no_list = vec![];
         for tr in document.select(&Selector::parse("div.table1 table tbody tr").unwrap()) {
@@ -151,7 +151,7 @@ async fn scraping(date: &NaiveDate) -> String {
             //正常に取得できたかチェックしてダメなら再取得(三回まで)
             for i in 0..RETRY_CNT {
                 let url = format!("{BASE_URL}pcexpect?rno={race_no}&jcd={stadium_no}&hd={date}");
-                let html = fetch(&url).await.unwrap();
+                let html = fetch_until_success(&url).await;
 
                 let document = Html::parse_document(&html);
                 let tmp = document
@@ -234,12 +234,12 @@ async fn scraping(date: &NaiveDate) -> String {
     .unwrap()
 }
 
-const RETRY_CNT: usize = 3;
+const RETRY_CNT: usize = 5;
 async fn scraping_v1(date: &NaiveDate) -> String {
     let json_date = format!("{}-{:02}-{:02}", date.year(), date.month(), date.day());
     let date = format!("{}{:02}{:02}", date.year(), date.month(), date.day());
     let date_url = format!("{BASE_URL}index?hd={}", &date);
-    let html = fetch(&date_url).await.unwrap();
+    let html = fetch_until_success(&date_url).await;
     let document = Html::parse_document(&html);
     let mut stadium_no_list = vec![];
     for a in document
@@ -268,7 +268,7 @@ async fn scraping_v1(date: &NaiveDate) -> String {
         let stadium_no_i64 = stadium_no.parse::<i64>().unwrap();
 
         let url = format!("{BASE_URL}raceindex?jcd={stadium_no}&hd={date}");
-        let html = fetch(&url).await.unwrap();
+        let html = fetch_until_success(&url).await;
         let document = Html::parse_document(&html);
         let mut race_no_list = vec![];
         for tr in document.select(&Selector::parse("div.table1 table tbody tr").unwrap()) {
@@ -301,7 +301,7 @@ async fn scraping_v1(date: &NaiveDate) -> String {
             //正常に取得できたかチェックしてダメなら再取得(三回まで)
             for i in 0..RETRY_CNT {
                 let url = format!("{BASE_URL}pcexpect?rno={race_no}&jcd={stadium_no}&hd={date}");
-                let html = fetch(&url).await.unwrap();
+                let html = fetch_until_success(&url).await;
 
                 let document = Html::parse_document(&html);
                 let tmp = document
@@ -442,6 +442,20 @@ struct V3Wrapper {
     expect: Vec<V3Expect>,
 }
 
+//This method is allowed for not fatal program
+pub async fn fetch_until_success(url: &str) -> String {
+    for i in 0..RETRY_CNT {
+        let result = fetch(&url).await;
+        if result.is_ok() {
+            return result.unwrap();
+        }
+        eprintln!("{}", result.err().unwrap());
+
+        tokio::time::sleep(Duration::from_millis((2000 * (i + 1) + rand::random_range(0..1000)) as u64)).await;
+    }
+    println!("target: {url}");
+    panic!("Fetch failed too many times! {}", RETRY_CNT);
+}
 pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
     tokio::time::sleep(Duration::from_millis(2000 + rand::random_range(0..1000))).await;
     // Some sites block requests with no/odd User-Agent.
