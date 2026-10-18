@@ -22,7 +22,14 @@ jobs:
         run: sleep 60
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # リベースに必要
 
+      # 手動・スケジュール実行が連続でされた時の対策: ファイルを作成・変更する「前」に、リモートの最新コミットを取り込む
+      - name: Pull latest changes
+        run: |
+          git pull --rebase origin ${{ github.ref_name }}
+          
       - name: Rust stable version
         run: rustup update stable
 
