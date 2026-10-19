@@ -81,4 +81,5 @@ jobs:
           repo: BoatraceOpenAPIhub
           owner: lamrongol
           ref: gh-pages
+          workflow: get_past.yml
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }} # GitHub Token With Relevant Permissions
