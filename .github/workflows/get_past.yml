@@ -74,12 +74,13 @@ jobs:
           git push origin HEAD || (git pull --rebase --autostash && git push origin HEAD)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Dispatch Workflow
-        uses: lasith-kg/dispatch-workflow@v3.0.0
-        with:
-          dispatch-method: workflow_dispatch
-          repo: BoatraceOpenAPIhub
-          owner: lamrongol
-          ref: gh-pages
-          workflow: get_past.yml
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }} # GitHub Token With Relevant Permissions
+
+      # - name: Dispatch Workflow
+      #   uses: lasith-kg/dispatch-workflow@v3.0.0
+      #   with:
+      #     dispatch-method: workflow_dispatch
+      #     repo: BoatraceOpenAPIhub
+      #     owner: lamrongol
+      #     ref: gh-pages
+      #     workflow: get_past.yml
+      #     token: ${{ secrets.PERSONAL_ACCESS_TOKEN }} # GitHub Token With Relevant Permissions
