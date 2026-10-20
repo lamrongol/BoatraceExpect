@@ -75,6 +75,4 @@ jobs:
         uses: rjstone/discord-webhook-notify@v2.3.1
         with:
           webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
-          embeds: |
-            - title: 公式予想取得成功
-              description: @lamrongol
+          content: 公式コンピューター予測取得成功 @lamrongol
