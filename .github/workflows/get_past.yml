@@ -1,8 +1,8 @@
 name: get_past
 
 on:
-  schedule:
-    - cron: "22 */1 * * *"
+  # schedule:
+  #   - cron: "22 */1 * * *"
   workflow_dispatch:
 
 permissions:
