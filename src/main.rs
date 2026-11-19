@@ -1,6 +1,6 @@
 use chrono::{Datelike, NaiveDate, TimeDelta, Utc};
 use chrono_tz::Tz;
-use reqwest::header::{HeaderMap, USER_AGENT};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, USER_AGENT, ACCEPT_LANGUAGE};
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap};
@@ -461,7 +461,18 @@ pub async fn fetch(url: &str) -> Result<String, reqwest::Error> {
     // Some sites block requests with no/odd User-Agent.
     // This is a simple, polite one.
     let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, "rust-web-scraper/0.1".parse().unwrap());
+    headers.insert(
+        USER_AGENT,
+        HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"),
+    );
+    headers.insert(
+        ACCEPT,
+        HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"),
+    );
+    headers.insert(
+        ACCEPT_LANGUAGE,
+        HeaderValue::from_static("ja,en-US;q=0.9,en;q=0.8"),
+    );
     // Client is built once per call here for simplicity.
     // If you're scraping multiple URLs, build it once and reuse it (see note below).
     let client = reqwest::Client::builder()
