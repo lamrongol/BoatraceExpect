@@ -21,7 +21,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
-
+        with:
+          ref: main
+          
       - name: Rust stable version
         run: rustup update stable
 
