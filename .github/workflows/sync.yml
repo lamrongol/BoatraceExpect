@@ -73,9 +73,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Discord Webhook Notify
-        if: success()
-        uses: rjstone/discord-webhook-notify@v2.3.1
-        with:
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
-          content: 公式コンピューター予測取得成功 @lamrongol
+      # - name: Discord Webhook Notify
+      #   if: success()
+      #   uses: rjstone/discord-webhook-notify@v2.3.1
+      #   with:
+      #     webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+      #     content: 公式コンピューター予測取得成功 @lamrongol
